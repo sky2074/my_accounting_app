@@ -7,96 +7,53 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
-
+    
     steps:
-      # 1. 检出代码
-      - name: Checkout code
+      # 第一步：检出你的代码库
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      # 2. 设置Python环境
+      
+      # 第二步：设置Python环境
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-
-      # 3. 安装依赖
+          python-version: '3.11'
+      
+      # 第三步：安装项目依赖
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest==9.0.2
-          pip install hypothesis==6.148.7
-          pip install pytest-cov==7.0.0
-
-      # 4. 创建测试专用的主文件（避免PyQt5 GUI问题）
-      - name: Create test version
+          # 假设你的依赖项在 requirements.txt 中
+          # pip install -r requirements.txt  
+          pip install pytest pytest-cov
+      
+      # 第四步：运行单元测试
+      - name: Run tests with pytest
         run: |
-          # 备份原始文件
-          cp main.py main_original.py
-          
-          # 创建测试版main.py（不含PyQt5）
-          cat > main.py << 'EOF'
-"""
-记账软件 - 测试专用版本（不含GUI）
-"""
-from enum import Enum
-from datetime import datetime
-
-class Tag(Enum):
-    SALARY = "工资"
-    AWARD = "奖金"
-    FOOD = "食物"
-    CLOTHES = "衣物"
-    HOUSE = "住房"
-    TRAFFIC = "交通"
-    CUSTOM = "自定义标签"
-
-class Record:
-    def __init__(self, in_or_out, number, tag, time=None, custom_tag=""):
-        self.in_or_out = in_or_out
-        self.number = number
-        self.time = time if time else datetime.now().strftime("%Y-%m-%d %H:%M")
-        self.tag = tag
-        self.custom_tag = custom_tag
-
-    def get_display_text(self):
-        direction = "收入" if self.in_or_out else "支出"
-        tag_display = self.custom_tag if self.tag == Tag.CUSTOM and self.custom_tag else self.tag.value
-        return f"{self.time:<16} {direction:>4} {int(self.number):>6}元 {tag_display:>8}"
-
-# 模拟AccountingApp用于测试
-class MockAccountingApp:
-    def __init__(self):
-        self.records = []
-EOF
-
-      # 5. 运行基础测试
-      - name: Run basic tests
-        run: |
-          # 创建简单的测试文件
-          cat > test_basic.py << 'EOF'
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+          # 创建测试文件
+          cat > test_accounting.py << 'EOF'
 from main import Record, Tag
 
-def test_basic():
+def test_record_creation():
     record = Record(True, 1000, Tag.SALARY, "2024-01-01 12:00", "")
     assert record.number == 1000
-    print("✅ Basic test passed")
+    assert record.in_or_out == True
+    assert record.tag == Tag.SALARY
+    print("✅ Record creation test passed")
+
+def test_record_display():
+    record = Record(False, 500, Tag.FOOD, "2024-01-01 12:00", "")
+    display_text = record.get_display_text()
+    assert "支出" in display_text
+    assert "500元" in display_text
+    print("✅ Record display test passed")
 
 if __name__ == "__main__":
-    test_basic()
+    test_record_creation()
+    test_record_display()
 EOF
           
-          python test_basic.py
-
-      # 6. 清理和恢复
-      - name: Cleanup
-        if: always()
-        run: |
-          if [ -f "main_original.py" ]; then
-            mv main_original.py main.py
-            echo "Original main.py restored"
-          fi
+          # 运行测试
+          python -m pytest test_accounting.py -v
