@@ -1,0 +1,73 @@
+# GitHub Actions CI 配置
+name: Python Accounting App CI
+
+# 触发条件：推送到main分支或创建PR到main分支时运行
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+# 工作流任务
+jobs:
+  test:
+    # 在Ubuntu最新版上运行
+    runs-on: ubuntu-latest
+    
+    # 任务步骤
+    steps:
+    # 1. 检出代码
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    # 2. 设置Python环境
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    # 3. 安装系统依赖（如果需要PyQt5）
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgl1-mesa-glx xvfb
+    
+    # 4. 安装Python依赖
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyQt5
+        pip install pytest
+        pip install pytest-qt
+        pip install hypothesis
+        pip install pytest-cov
+    
+    # 5. 运行单元测试（非GUI测试）
+    - name: Run unit tests
+      run: |
+        python -m pytest tests/unit/ -v
+    
+    # 6. 运行集成测试（使用xvfb模拟显示环境）
+    - name: Run integration tests
+      run: |
+        xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" python -m pytest tests/integration/ -v
+    
+    # 7. 运行模糊测试
+    - name: Run fuzz tests
+      run: |
+        python -m pytest test_real_hypothesis.py -v --tb=short
+    
+    # 8. 生成测试覆盖率报告
+    - name: Generate coverage report
+      run: |
+        python -m pytest --cov=. --cov-report=xml --cov-report=html
+    
+    # 9. 上传测试结果（可选）
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results
+        path: |
+          htmlcov/
+          .coverage

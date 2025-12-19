@@ -1,0 +1,5 @@
+PyQt5==5.15.11
+pytest==9.0.2
+pytest-qt==4.5.0
+hypothesis==6.148.7
+pytest-cov==7.0.0
