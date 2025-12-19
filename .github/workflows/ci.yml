@@ -35,62 +35,65 @@ jobs:
         # 备份原始文件
         cp main.py main_original.py
         
-        # 创建测试版main.py（不含PyQt5）
-        cat > main.py << 'TEST_EOF'
-"""
+        # 使用Python直接创建测试文件
+        python3 -c "
+# 创建测试版main.py（不含PyQt5）
+test_content = '''\"\"\"
 记账软件 - 测试专用版本（不含GUI）
-"""
+\"\"\"
 from enum import Enum
 from datetime import datetime
 
 class Tag(Enum):
-    SALARY = "工资"
-    AWARD = "奖金"
-    FOOD = "食物"
-    CLOTHES = "衣物"
-    HOUSE = "住房"
-    TRAFFIC = "交通"
-    CUSTOM = "自定义标签"
+    SALARY = \"工资\"
+    AWARD = \"奖金\"
+    FOOD = \"食物\"
+    CLOTHES = \"衣物\"
+    HOUSE = \"住房\"
+    TRAFFIC = \"交通\"
+    CUSTOM = \"自定义标签\"
 
 class Record:
-    def __init__(self, in_or_out, number, tag, time=None, custom_tag=""):
+    def __init__(self, in_or_out, number, tag, time=None, custom_tag=\"\"):
         self.in_or_out = in_or_out
         self.number = number
-        self.time = time if time else datetime.now().strftime("%Y-%m-%d %H:%M")
+        self.time = time if time else datetime.now().strftime(\"%Y-%m-%d %H:%M\")
         self.tag = tag
         self.custom_tag = custom_tag
 
     def get_display_text(self):
-        direction = "收入" if self.in_or_out else "支出"
+        direction = \"收入\" if self.in_or_out else \"支出\"
         tag_display = self.custom_tag if self.tag == Tag.CUSTOM and self.custom_tag else self.tag.value
-        return f"{self.time:<16} {direction:>4} {int(self.number):>6}元 {tag_display:>8}"
+        return f\"{self.time:<16} {direction:>4} {int(self.number):>6}元 {tag_display:>8}\"
 
 # 模拟AccountingApp用于测试
 class MockAccountingApp:
     def __init__(self):
         self.records = []
-TEST_EOF
+'''
+
+with open('main.py', 'w', encoding='utf-8') as f:
+    f.write(test_content)
+        "
     
     # 5. 运行基础测试
     - name: Run basic tests
       run: |
-        # 创建简单的测试文件
-        cat > test_basic.py << 'TEST_EOF2'
+        # 使用Python创建测试文件
+        python3 -c "
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from main import Record, Tag
 
 def test_basic():
-    record = Record(True, 1000, Tag.SALARY, "2024-01-01 12:00", "")
+    record = Record(True, 1000, Tag.SALARY, \"2024-01-01 12:00\", \"\")
     assert record.number == 1000
-    print("✅ Basic test passed")
+    print(\"✅ Basic test passed\")
 
-if __name__ == "__main__":
+if __name__ == \"__main__\":
     test_basic()
-TEST_EOF2
-        
-        python test_basic.py
+        "
     
     # 6. 清理和恢复
     - name: Cleanup
