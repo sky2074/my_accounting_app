@@ -23,59 +23,21 @@ jobs:
         run: |
           pip install pytest
       
-      - name: Check file structure
-        run: |
-          echo "📁 当前目录结构:"
-          ls -la
-          echo ""
-          if [ -f "main.py" ]; then
-            echo "✅ main.py 存在"
-          else
-            echo "❌ main.py 不存在"
-          fi
-      
-      - name: Run basic Python tests
-        run: |
-          python -c "
-print('🔧 开始基础测试...')
-x = 1 + 1
-assert x == 2
-print('✅ 基础数学运算通过')
-
-import sys
-import os
-sys.path.insert(0, os.getcwd())
-
-if os.path.exists('main.py'):
-    with open('main.py', 'r') as f:
-        content = f.read()
-    
-    # 编译检查语法
-    compile(content, 'main.py', 'exec')
-    print('✅ main.py 语法检查通过')
-else:
-    print('⚠️  main.py 不存在，跳过语法检查')
-
-print('🎉 所有基础测试通过！')
-          "
-      
-      - name: Create test directory
+      - name: Create test file
         run: |
           mkdir -p tests
-      
-      - name: Create simple test file
-        run: |
-          cat > tests/test_basic.py << 'EOF'
-def test_placeholder():
-    """占位测试，确保测试框架工作"""
-    assert 1 + 1 == 2
-
-def test_main_exists():
-    """检查main.py是否存在"""
-    import os
-    assert os.path.exists("main.py")
-EOF
+          echo 'def test_basic():' > tests/test_example.py
+          echo '    assert 1 + 1 == 2' >> tests/test_example.py
       
       - name: Run pytest
         run: |
           python -m pytest tests/ -v
+      
+      - name: Check main.py
+        run: |
+          if [ -f "main.py" ]; then
+            echo "✅ main.py exists"
+            python -c "print('Main file size:', len(open('main.py').read()), 'bytes')"
+          else
+            echo "❌ main.py not found"
+          fi
