@@ -23,43 +23,163 @@ jobs:
         run: |
           pip install pytest
       
-      - name: Check if main.py exists
-        id: check_main
+      - name: Create stripped-down main.py for testing
         run: |
-          if [ -f "main.py" ]; then
-            echo "main.py exists"
-            echo "has_main=true" >> $GITHUB_OUTPUT
-          else
-            echo "main.py does not exist"
-            echo "has_main=false" >> $GITHUB_OUTPUT
-          fi
+          # 创建不包含PyQt5的测试版本
+          python -c "
+# 读取原始main.py内容
+with open('main.py', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# 提取核心类定义（Record和Tag）
+lines = content.split('\n')
+core_classes = []
+in_record_class = False
+in_tag_class = False
+imports = ['from enum import Enum', 'from datetime import datetime']
+
+for line in lines:
+    # 收集需要的import
+    if line.strip().startswith('from enum import'):
+        imports[0] = line.strip()
+    elif line.strip().startswith('from datetime import'):
+        imports[1] = line.strip()
+    
+    # 收集Tag类
+    if 'class Tag(Enum):' in line:
+        in_tag_class = True
+    if in_tag_class:
+        core_classes.append(line)
+        if line.strip() == '' and len(core_classes) > 10:  # 简单判断Tag类结束
+            in_tag_class = False
+    
+    # 收集Record类
+    if 'class Record:' in line and 'def __init__' not in line:
+        in_record_class = True
+    if in_record_class:
+        core_classes.append(line)
+        if 'def get_display_text' in line:
+            # 找到get_display_text方法后继续收集直到方法结束
+            pass
+        if line.strip() == '' and 'def get_display_text' in '\n'.join(core_classes[-5:]):
+            # 简单判断Record类结束
+            in_record_class = False
+
+# 写入测试版本
+with open('test_main.py', 'w', encoding='utf-8') as f:
+    f.write('\n'.join(imports))
+    f.write('\n\n')
+    f.write('\n'.join(core_classes))
+    f.write('\n')
+
+print('✅ 创建了测试版本 test_main.py')
+          "
       
-      - name: Run basic test (always passes)
+      - name: Create and run basic tests
         run: |
-          python -c "print('✅ Basic Python test passed')"
+          python -c "
+import sys
+sys.path.insert(0, '.')
+
+try:
+    # 尝试导入测试版本
+    from test_main import Record, Tag
+    
+    print('✅ 成功导入Record和Tag类')
+    
+    # 测试1: 创建Record对象
+    record1 = Record(True, 1000, Tag.SALARY, \"2024-01-01 12:00\", \"\")
+    assert record1.number == 1000
+    assert record1.in_or_out == True
+    assert record1.tag == Tag.SALARY
+    print('✅ 测试1: Record对象创建成功')
+    
+    # 测试2: 测试get_display_text方法
+    display_text = record1.get_display_text()
+    assert \"收入\" in display_text
+    assert \"1000元\" in display_text
+    assert \"工资\" in display_text
+    print(f'✅ 测试2: 显示文本格式正确 - {display_text}')
+    
+    # 测试3: 测试自定义标签
+    record2 = Record(False, 500, Tag.CUSTOM, \"2024-01-01 13:00\", \"娱乐\")
+    assert record2.tag == Tag.CUSTOM
+    assert record2.custom_tag == \"娱乐\"
+    print('✅ 测试3: 自定义标签功能正常')
+    
+    # 测试4: 测试所有标签
+    tags = [Tag.SALARY, Tag.AWARD, Tag.FOOD, Tag.CLOTHES, Tag.HOUSE, Tag.TRAFFIC, Tag.CUSTOM]
+    for tag in tags:
+        record = Record(True, 100, tag, \"2024-01-01 14:00\", \"\")
+        assert record.tag == tag
+    print('✅ 测试4: 所有标签类型正常工作')
+    
+    print('🎉 所有测试通过！')
+    
+except ImportError as e:
+    print(f'❌ 导入错误: {e}')
+    sys.exit(1)
+except AssertionError as e:
+    print(f'❌ 测试失败: {e}')
+    sys.exit(1)
+except Exception as e:
+    print(f'❌ 其他错误: {e}')
+    sys.exit(1)
+          "
       
-      - name: Create and run simple test
+      - name: Create pytest test file
         run: |
-          # 创建一个简单的测试文件
-          echo "def test_basic():" > test_simple.py
-          echo "    assert 1 + 1 == 2" >> test_simple.py
-          echo "    print('✅ Basic math test passed')" >> test_simple.py
-          
-          echo "def test_main_file_exists():" >> test_simple.py
-          echo "    import os" >> test_simple.py
-          echo "    # 这个测试不会失败，只是打印信息" >> test_simple.py
-          echo "    if os.path.exists('main.py'):" >> test_simple.py
-          echo "        print('✅ main.py found')" >> test_simple.py
-          echo "    else:" >> test_simple.py
-          echo "        print('⚠️  main.py not found')" >> test_simple.py
-          
-          # 运行测试
-          python -m pytest test_simple.py -v --tb=short
+          cat > test_accounting.py << 'EOF'
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# 尝试导入测试版本
+try:
+    from test_main import Record, Tag
+    IMPORT_SUCCESS = True
+except ImportError:
+    IMPORT_SUCCESS = False
+
+def test_import():
+    """测试是否能成功导入核心类"""
+    assert IMPORT_SUCCESS, "无法导入Record和Tag类"
+
+def test_record_creation():
+    """测试Record对象创建"""
+    if not IMPORT_SUCCESS:
+        return
+    record = Record(True, 1000, Tag.SALARY, "2024-01-01 12:00", "")
+    assert record.number == 1000
+    assert record.in_or_out == True
+    assert record.tag == Tag.SALARY
+
+def test_record_display():
+    """测试显示文本生成"""
+    if not IMPORT_SUCCESS:
+        return
+    record = Record(True, 1000, Tag.SALARY, "2024-01-01 12:00", "")
+    text = record.get_display_text()
+    assert "收入" in text
+    assert "1000元" in text
+
+def test_custom_tag():
+    """测试自定义标签"""
+    if not IMPORT_SUCCESS:
+        return
+    record = Record(False, 500, Tag.CUSTOM, "2024-01-01 13:00", "娱乐")
+    assert record.custom_tag == "娱乐"
+    assert record.tag == Tag.CUSTOM
+
+if __name__ == "__main__":
+    # 简单运行测试
+    test_import()
+    test_record_creation()
+    test_record_display()
+    test_custom_tag()
+    print("所有测试通过")
+EOF
       
-      - name: List directory contents
+      - name: Run pytest tests
         run: |
-          echo "📁 Directory contents:"
-          ls -la
-          echo ""
-          echo "📄 Python files:"
-          find . -name "*.py" | head -10
+          python -m pytest test_accounting.py -v
