@@ -28,103 +28,54 @@ jobs:
           echo "📁 当前目录结构:"
           ls -la
           echo ""
-          echo "📄 文件检查:"
           if [ -f "main.py" ]; then
             echo "✅ main.py 存在"
-            echo "📊 main.py 基本信息:"
-            head -20 main.py
           else
             echo "❌ main.py 不存在"
           fi
       
       - name: Run basic Python tests
         run: |
-          # 创建一个简单的测试文件
           python -c "
 print('🔧 开始基础测试...')
+x = 1 + 1
+assert x == 2
+print('✅ 基础数学运算通过')
 
-# 测试1: Python基础功能
-try:
-    x = 1 + 1
-    assert x == 2
-    print('✅ 测试1: 基础数学运算通过')
-except AssertionError:
-    print('❌ 测试1失败')
-    exit(1)
+import sys
+import os
+sys.path.insert(0, os.getcwd())
 
-# 测试2: 如果有main.py，检查基本语法
-try:
-    import sys
-    import os
-    sys.path.insert(0, os.getcwd())
+if os.path.exists('main.py'):
+    with open('main.py', 'r') as f:
+        content = f.read()
     
-    if os.path.exists('main.py'):
-        # 只检查语法，不执行
-        with open('main.py', 'r') as f:
-            content = f.read()
-        
-        # 编译检查语法
-        compile(content, 'main.py', 'exec')
-        print('✅ 测试2: main.py 语法检查通过')
-    else:
-        print('⚠️  测试2: main.py 不存在，跳过语法检查')
-        
-except SyntaxError as e:
-    print(f'❌ 测试2: main.py 语法错误: {e}')
-    exit(1)
-except Exception as e:
-    print(f'⚠️  测试2: 其他错误: {e}')
+    # 编译检查语法
+    compile(content, 'main.py', 'exec')
+    print('✅ main.py 语法检查通过')
+else:
+    print('⚠️  main.py 不存在，跳过语法检查')
 
 print('🎉 所有基础测试通过！')
           "
       
-      - name: Create and run simple unit tests
+      - name: Create test directory
         run: |
-          # 创建一个简单的单元测试文件
-          echo "开始创建单元测试..."
-          
-          # 使用多行Python代码创建测试文件
-          python3 << "PYTEST"
-import sys
-import os
-
-# 创建测试目录
-test_dir = "tests"
-os.makedirs(test_dir, exist_ok=True)
-
-# 创建简单的测试文件
-test_content = '''
-import sys
-import os
-
+          mkdir -p tests
+      
+      - name: Create simple test file
+        run: |
+          cat > tests/test_basic.py << 'EOF'
 def test_placeholder():
     """占位测试，确保测试框架工作"""
     assert 1 + 1 == 2
-    print("✅ 占位测试通过")
 
-if __name__ == "__main__":
-    test_placeholder()
-'''
-
-test_file = os.path.join(test_dir, "test_basic.py")
-with open(test_file, "w") as f:
-    f.write(test_content)
-
-print(f"✅ 测试文件已创建: {test_file}")
-
-# 运行测试
-sys.path.insert(0, os.getcwd())
-try:
-    from tests.test_basic import test_placeholder
-    test_placeholder()
-    print("✅ 测试导入和执行成功")
-except Exception as e:
-    print(f"❌ 测试失败: {e}")
-    sys.exit(1)
-PYTEST
+def test_main_exists():
+    """检查main.py是否存在"""
+    import os
+    assert os.path.exists("main.py")
+EOF
       
       - name: Run pytest
         run: |
-          # 运行pytest
-          echo "运行pytest..."
           python -m pytest tests/ -v
