@@ -36,7 +36,7 @@ jobs:
         cp main.py main_original.py
         
         # 创建测试版main.py（不含PyQt5）
-        cat > main.py << 'EOF'
+        cat > main.py << 'TEST_EOF'
 """
 记账软件 - 测试专用版本（不含GUI）
 """
@@ -69,13 +69,13 @@ class Record:
 class MockAccountingApp:
     def __init__(self):
         self.records = []
-EOF
+TEST_EOF
     
     # 5. 运行基础测试
     - name: Run basic tests
       run: |
         # 创建简单的测试文件
-        cat > test_basic.py << 'EOF'
+        cat > test_basic.py << 'TEST_EOF2'
 import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -88,7 +88,7 @@ def test_basic():
 
 if __name__ == "__main__":
     test_basic()
-EOF
+TEST_EOF2
         
         python test_basic.py
     
